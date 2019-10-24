@@ -11,6 +11,7 @@ class BluetoothCharacteristic {
   final Guid secondaryServiceUuid;
   final CharacteristicProperties properties;
   final List<BluetoothDescriptor> descriptors;
+
   bool get isNotifying {
     try {
       var cccd =
@@ -22,6 +23,7 @@ class BluetoothCharacteristic {
   }
 
   BehaviorSubject<List<int>> _value;
+
   Stream<List<int>> get value => Observable.merge([
         _value.stream,
         _onValueChangedStream,
@@ -106,7 +108,8 @@ class BluetoothCharacteristic {
   /// guaranteed and will return immediately with success.
   /// [CharacteristicWriteType.withResponse]: the method will return after the
   /// write operation has either passed or failed.
-  Future<Null> write(List<int> value, {bool withoutResponse = false}) async {
+  Future<Null> write(List<int> value,
+      {bool withoutResponse = false, bool reflectValue = true}) async {
     final type = withoutResponse
         ? CharacteristicWriteType.withoutResponse
         : CharacteristicWriteType.withResponse;
@@ -123,7 +126,7 @@ class BluetoothCharacteristic {
         .invokeMethod('writeCharacteristic', request.writeToBuffer());
 
     if (type == CharacteristicWriteType.withoutResponse) {
-      _value.add(value);
+      if (reflectValue) _value.add(value);
       return result;
     }
 
@@ -141,8 +144,9 @@ class BluetoothCharacteristic {
         .then((success) => (!success)
             ? throw new Exception('Failed to write the characteristic')
             : null)
-        .then((_) => _value.add(value))
-        .then((_) => null);
+        .then((_) {
+      if (reflectValue) _value.add(value);
+    }).then((_) => null);
   }
 
   /// Sets notifications or indications for the value of a specified characteristic
